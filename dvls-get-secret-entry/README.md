@@ -9,7 +9,7 @@ Before using this action, you must first obtain a token using the `dvls-login` a
 ```yaml
 steps:
   - name: Login to Devolutions Server
-    uses: devolutions/dvls-login@v1
+    uses: devolutions/actions-public/dvls-login@main
     with:
       server_url: 'https://your-server.devolutions.app'
       app_key: ${{ secrets.DVLS_APP_KEY }}
@@ -32,7 +32,7 @@ steps:
 ```yaml
 steps:
   - name: Get Secret from Devolutions Server
-    uses: devolutions-community/dvls-get-secret-entry@main
+    uses: devolutions/actions-public/dvls-get-secret-entry@main
     with:
       server_url: 'https://your-server.devolutions.app'
       token: ${{ secrets.DVLS_TOKEN }}
@@ -54,14 +54,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Login to Devolutions Server
-        uses: devolutions/dvls-login@v1
+        uses: devolutions/actions-public/dvls-login@main
         with:
           server_url: 'https://your-server.devolutions.app'
           app_key: ${{ secrets.DVLS_APP_KEY }}
           app_secret: ${{ secrets.DVLS_APP_SECRET }}
 
       - name: Get Secret
-        uses: devolutions/dvls-get-secret-entry@v1
+        uses: devolutions/actions-public/dvls-get-secret-entry@main
         with:
           server_url: 'https://your-server.devolutions.app'
           token: ${{ env.DVLS_TOKEN }}  # Uses the token from the login step
