@@ -1,0 +1,63 @@
+name: "Setup Halide"
+description: "Installs Halide for Linux, macOS, and Windows"
+
+inputs:
+  version:
+    description: "Halide version to install"
+    required: false
+    default: "16.0.0"
+  prebuilt_version:
+    description: "prebuilt distribution version"
+    required: false
+    default: "v2025.2.0"
+  set_halide_root_dir:
+    description: "Set HALIDE_ROOT_DIR environment variable"
+    required: false
+    default: "true"
+  skip_checksum_validation:
+    description: "Skip checksum validation"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Halide
+      shell: pwsh
+      run: |
+        $HalideVersion = "${{ inputs.version }}"
+        $HostPlatform = @{'Windows'='windows'; 'macOS'='macos'; 'Linux'='linux'}['${{ runner.os }}']
+        if ($HostPlatform -eq 'linux') { $HostPlatform = "ubuntu-$(lsb_release -rs)" }
+        $DownloadVersion = "${{ inputs.prebuilt_version }}"
+        $BaseDownloadUrl="https://github.com/awakecoding/llvm-prebuilt/releases/download/$DownloadVersion"
+        $HostArch=@{'X64'='x86_64';'ARM64'='aarch64'}['${{runner.arch}}']
+        $PackageBaseName="halide-${HalideVersion}-${HostArch}-${HostPlatform}"
+        $DownloadFile = "${PackageBaseName}.tar.xz"
+        $ChecksumFile = "${{ github.action_path }}/${DownloadVersion}/checksums"
+        wget -q "${BaseDownloadUrl}/${PackageBaseName}.tar.xz"
+
+        try { $SkipChecksumValidation = [System.Boolean]::Parse('${{ inputs.skip_checksum_validation }}') } catch { $SkipChecksumValidation = $true }
+        try { $ExpectedChecksum = (Get-Content $ChecksumFile | Where-Object { $_.EndsWith($DownloadFile) }).Split(" ")[0] } catch { $ExpectedChecksum = $null }
+        $ComputedChecksum = (Get-FileHash -Path $DownloadFile -Algorithm SHA256).Hash
+        if ((-Not $SkipChecksumValidation) -and ($ComputedChecksum -ne $ExpectedChecksum)) {
+          Write-Host "::error ::❌ Checksum validation failed for '$DownloadFile': $ComputedChecksum, $ExpectedChecksum"
+          exit 1
+        }
+        
+        if ($IsWindows) {
+          $HALIDE_PREFIX="C:/halide"
+          cmd.exe /c "7z.exe x $DownloadFile -so | 7z x -si -ttar -o`"C:/temp`""
+          mv "C:/temp/${PackageBaseName}" $HALIDE_PREFIX
+          mv $HALIDE_PREFIX/bin/*.dll $HALIDE_PREFIX/lib
+          Remove-Item $DownloadFile -Force | Out-Null
+        } else {
+          $HALIDE_PREFIX="/opt/halide"
+          tar -xf $DownloadFile -C /tmp
+          sudo mv "/tmp/${PackageBaseName}" $HALIDE_PREFIX
+          Remove-Item $DownloadFile -Force | Out-Null
+        }
+        
+        try { $SetHalideRootDir = [System.Boolean]::Parse('${{ inputs.set_halide_root_dir }}') } catch { $SetHalideRootDir = $true }
+        if ($SetHalideRootDir) {
+          echo "HALIDE_ROOT_DIR=$HALIDE_PREFIX" >> $Env:GITHUB_ENV
+        }

@@ -1,0 +1,74 @@
+name: "Setup Clang+LLVM"
+description: "Installs Clang+LLVM for Linux, macOS, and Windows"
+
+inputs:
+  version:
+    description: "Clang+LLVM version to install"
+    required: false
+    default: "18.1.8"
+  prebuilt_version:
+    description: "prebuilt distribution version"
+    required: false
+    default: "v2025.2.0"
+  add_to_path:
+    description: "Add LLVM binary directory to PATH"
+    required: false
+    default: "true"
+  set_llvm_dir:
+    description: "Set LLVM_DIR environment variable"
+    required: false
+    default: "false"
+  skip_checksum_validation:
+    description: "Skip checksum validation"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Clang+LLVM
+      shell: pwsh
+      run: |
+        $ClangLlvmVersion = "${{ inputs.version }}"
+        $HostPlatform = @{'Windows'='windows'; 'macOS'='macos'; 'Linux'='linux'}['${{ runner.os }}']
+        if ($HostPlatform -eq 'linux') { $HostPlatform = "ubuntu-$(lsb_release -rs)" }
+        $DownloadVersion = "${{ inputs.prebuilt_version }}"
+        $BaseDownloadUrl="https://github.com/awakecoding/llvm-prebuilt/releases/download/$DownloadVersion"
+        $HostArch=@{'X64'='x86_64';'ARM64'='aarch64'}['${{runner.arch}}']
+        $PackageBaseName="clang+llvm-${ClangLlvmVersion}-${HostArch}-${HostPlatform}"
+        $DownloadFile = "${PackageBaseName}.tar.xz"
+        $ChecksumFile = "${{ github.action_path }}/${DownloadVersion}/checksums"
+        wget -q "${BaseDownloadUrl}/${PackageBaseName}.tar.xz"
+
+        try { $SkipChecksumValidation = [System.Boolean]::Parse('${{ inputs.skip_checksum_validation }}') } catch { $SkipChecksumValidation = $true }
+        try { $ExpectedChecksum = (Get-Content $ChecksumFile | Where-Object { $_.EndsWith($DownloadFile) }).Split(" ")[0] } catch { $ExpectedChecksum = $null }
+        $ComputedChecksum = (Get-FileHash -Path $DownloadFile -Algorithm SHA256).Hash
+        if ((-Not $SkipChecksumValidation) -and ($ComputedChecksum -ne $ExpectedChecksum)) {
+          Write-Host "::error ::❌ Checksum validation failed for '$DownloadFile': $ComputedChecksum, $ExpectedChecksum"
+          exit 1
+        }
+        
+        if ($IsWindows) {
+          $LLVM_PREFIX="C:/llvm"
+          cmd.exe /c "7z.exe x $DownloadFile -so | 7z x -si -ttar -o`"C:/temp`""
+          mv "C:/temp/${PackageBaseName}" $LLVM_PREFIX
+          Remove-Item $DownloadFile -Force | Out-Null
+        } else {
+          $LLVM_PREFIX="/opt/llvm"
+          tar -xf $DownloadFile -C /tmp
+          sudo mv "/tmp/${PackageBaseName}" $LLVM_PREFIX
+          Remove-Item $DownloadFile -Force | Out-Null
+        }
+        
+        $LLVM_BIN_PATH = Join-Path $LLVM_PREFIX "bin"
+        $LLVM_DIR = Join-Path $LLVM_PREFIX "lib" "cmake" "llvm"
+
+        try { $AddToPath = [System.Boolean]::Parse('${{ inputs.add_to_path }}') } catch { $AddToPath = $true }
+        try { $SetLlvmDir = [System.Boolean]::Parse('${{ inputs.set_llvm_dir }}') } catch { $SetLlvmDir = $false }
+
+        if ($AddToPath) {
+          echo "PATH=$LLVM_BIN_PATH$([IO.Path]::PathSeparator)$Env:PATH" >> $Env:GITHUB_ENV
+        }
+        if ($SetLlvmDir) {
+          echo "LLVM_DIR=$LLVM_DIR" >> $Env:GITHUB_ENV
+        }
