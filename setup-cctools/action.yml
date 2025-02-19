@@ -1,0 +1,46 @@
+name: "Setup CCTools"
+description: "Installs cctools for Linux"
+
+inputs:
+  prebuilt_version:
+    description: "prebuilt distribution version"
+    required: false
+    default: "v2025.2.0"
+  skip_checksum_validation:
+    description: "Skip checksum validation"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install CCTools
+      shell: pwsh
+      run: |
+        $HostPlatform = @{'Windows'='windows'; 'macOS'='macos'; 'Linux'='linux'}['${{ runner.os }}']
+        if ($HostPlatform -eq 'linux') {
+          $HostPlatform = "ubuntu-$(lsb_release -rs)"
+        } else {
+          Write-Host "::error ::❌ CCTools installation is only supported on Linux!"
+          exit 1
+        }
+        $DownloadVersion = "${{ inputs.prebuilt_version }}"
+        $BaseDownloadUrl="https://github.com/awakecoding/llvm-prebuilt/releases/download/$DownloadVersion"
+        $HostArch=@{'X64'='x86_64';'ARM64'='aarch64'}['${{runner.arch}}']
+        $PackageBaseName = "cctools-${HostArch}-${HostPlatform}"
+        $DownloadFile = "${PackageBaseName}.tar.xz"
+        $ChecksumFile = "${{ github.action_path }}/${DownloadVersion}/checksums"
+        wget -q "${BaseDownloadUrl}/${DownloadFile}"
+
+        try { $SkipChecksumValidation = [System.Boolean]::Parse('${{ inputs.skip_checksum_validation }}') } catch { $SkipChecksumValidation = $true }
+        try { $ExpectedChecksum = (Get-Content $ChecksumFile | Where-Object { $_.EndsWith($DownloadFile) }).Split(" ")[0] } catch { $ExpectedChecksum = $null }
+        $ComputedChecksum = (Get-FileHash -Path $DownloadFile -Algorithm SHA256).Hash
+        if ((-Not $SkipChecksumValidation) -and ($ComputedChecksum -ne $ExpectedChecksum)) {
+          Write-Host "::error ::❌ Checksum validation failed for '$DownloadFile': $ComputedChecksum, $ExpectedChecksum"
+          exit 1
+        }
+
+        tar -xf $DownloadFile -C /tmp
+        sudo mv "/tmp/${PackageBaseName}/bin/lipo" /usr/local/bin
+        sudo mv "/tmp/${PackageBaseName}/bin/install_name_tool" /usr/local/bin
+        Remove-Item $DownloadFile -Force | Out-Null

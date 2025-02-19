@@ -1,0 +1,97 @@
+name: "Setup CBake"
+description: "Clones CBake, downloads sysroots, and sets up the environment"
+
+inputs:
+  version:
+    description: "CBake version to install"
+    required: false
+    default: "v2025.02.18.0"
+  sysroots:
+    description: "List of sysroots to download"
+    required: false
+    default: |
+      - ubuntu-20.04-amd64
+      - ubuntu-20.04-arm64
+  install_ninja:
+    description: "Make sure Ninja is installed"
+    required: false
+    default: "true"
+  cargo_env_scripts:
+    description: "Generate environment scripts for cargo"
+    required: false
+    default: "false"
+  skip_checksum_validation:
+    description: "Skip checksum validation"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup CBake
+      shell: pwsh
+      run: |
+        $DownloadVersion = $CBakeVersion = "${{ inputs.version }}"
+        $CBakeRepoUrl = "https://github.com/Devolutions/CBake"
+        $BaseDownloadUrl = "$CBakeRepoUrl/releases/download/$DownloadVersion"
+        git clone -q -b $CBakeVersion $CBakeRepoUrl cbake --depth 1 -c advice.detachedHead=false
+
+        $Env:CBAKE_HOME = $CBakeHome = Join-Path (Get-Location) 'cbake'
+        echo "CBAKE_HOME=$CBakeHome" >> $Env:GITHUB_ENV
+
+        $SysrootsText = '${{ inputs.sysroots }}'
+        try {
+          if ($SysrootsText -match "^\[") {
+            $SysrootNames = ConvertFrom-Json $SysrootsText
+          } else {
+            $SysrootNames = $SysrootsText -split "`n" | ForEach-Object { $_.Trim() -replace "^- ", "" } | Where-Object { $_ -ne "" }
+          }
+          # ensure it's always an array
+          if ($SysrootNames -isnot [array]) { $SysrootNames = @($SysrootNames) }
+        } catch {
+          Write-Host "::error ::❌ failed to parse sysroots: '$SysrootsText'"
+        }
+
+        try { $SkipChecksumValidation = [System.Boolean]::Parse('${{ inputs.skip_checksum_validation }}') } catch { $SkipChecksumValidation = $true }
+
+        # Download and extract sysroots
+        foreach ($SysrootName in $SysrootNames) {
+          Write-Host "Downloading sysroot '$SysrootName'"
+          $DownloadFile = "$SysrootName-sysroot.tar.xz"
+          $ChecksumFile = "${{ github.action_path }}/${DownloadVersion}/checksums"
+          curl -L --output "$CBakeHome/sysroots/$DownloadFile" "$BaseDownloadUrl/$DownloadFile"
+          try { $ExpectedChecksum = (Get-Content $ChecksumFile | Where-Object { $_.EndsWith($DownloadFile) }).Split(" ")[0] } catch { $ExpectedChecksum = $null }
+          $ComputedChecksum = (Get-FileHash -Path "$CBakeHome/sysroots/$DownloadFile" -Algorithm SHA256).Hash
+          if ((-Not $SkipChecksumValidation) -and ($ComputedChecksum -ne $ExpectedChecksum)) {
+            Write-Host "::error ::❌ Checksum validation failed for '$DownloadFile': $ComputedChecksum, $ExpectedChecksum"
+            exit 1
+          }
+          tar -C "$CBakeHome/sysroots" -xf "$CBakeHome/sysroots/$DownloadFile"
+          Remove-Item "$CBakeHome/sysroots/$DownloadFile" -Force | Out-Null
+        }
+
+        # Make sure ninja is installed
+        try { $InstallNinja = [System.Boolean]::Parse('${{ inputs.install_ninja }}') } catch { $InstallNinja = $true }
+        if ($InstallNinja -and ((Get-Command -Type Application ninja -ErrorAction SilentlyContinue) -eq $null)) {
+          Write-Host "Installing Ninja"
+          if ($IsLinux) { sudo apt install -y ninja-build }
+          elseif ($IsMacOS) { brew install ninja }
+          elseif ($IsWindows) { choco install -y --no-progress ninja }
+        }
+
+        # Generate environment scripts for cargo
+        try { $CargoEnvScripts = [System.Boolean]::Parse('${{ inputs.cargo_env_scripts }}') } catch { $CargoEnvScripts = $false }
+        if ($CargoEnvScripts) {
+          foreach ($SysrootName in $SysrootNames) {
+            Write-Host "Generating cargo environment scripts for '$SysrootName'"
+            $Env:SYSROOT_NAME = $SysrootName
+            $CMakeToolchainFile = Join-Path $Env:CBAKE_HOME "cmake/linux.toolchain.cmake"
+            $CMakeSourceDir = Join-Path $Env:CBAKE_HOME "cargo"
+            $CMakeBuildDir = Join-Path $Env:CBAKE_HOME "cargo" $SysrootName
+            $CMakeArgs = @(
+              "-DSYSROOT_NAME=$Env:SYSROOT_NAME",
+              "-DCMAKE_TOOLCHAIN_FILE=$CMakeToolchainFile"
+            )
+            cmake $CMakeSourceDir -G Ninja -B $CMakeBuildDir $CMakeArgs
+          }
+        }
