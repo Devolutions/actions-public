@@ -1,0 +1,53 @@
+name: "Configure Android NDK for cargo"
+description: "Configures Android NDK for cargo"
+
+inputs:
+  android_api_level:
+    description: "Android API level"
+    required: false
+    default: "21"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Android NDK for cargo
+      shell: pwsh
+      run: |
+        $AndroidApiLevel = 21
+        $CargoConfigFile = "~/.cargo/config.toml"
+        $HostArch=@{'X64'='x86_64';'ARM64'='aarch64'}['${{runner.arch}}']
+        $HostPlatform = @{'Windows'='windows'; 'macOS'='darwin'; 'Linux'='linux'}['${{ runner.os }}']
+        $AndroidToolchain="${Env:ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/$HostPlatform-$HostArch"
+
+        Get-ChildItem -Path $AndroidToolchain "libunwind.a" -Recurse | ForEach-Object {
+          $libunwind = $_.FullName
+          $libgcc = Join-Path $_.DirectoryName "libgcc.a"
+          if (-Not (Test-Path $libgcc)) {
+              Write-Host $libgcc
+              Copy-Item $libunwind $libgcc
+          }
+        }
+
+        echo "[target.i686-linux-android]" >> $CargoConfigFile
+        echo "linker=`"$AndroidToolchain/bin/i686-linux-android${AndroidApiLevel}-clang`"" >> $CargoConfigFile
+        echo "rustflags = [`"-C`", `"link-args=-z max-page-size=16384`"]" >> $CargoConfigFile
+        echo "CC_i686-linux-android=$AndroidToolchain/bin/i686-linux-android${AndroidApiLevel}-clang" >> $Env:GITHUB_ENV
+        echo "AR_i686-linux-android=$AndroidToolchain/bin/llvm-ar" >> $Env:GITHUB_ENV
+
+        echo "[target.x86_64-linux-android]" >> $CargoConfigFile
+        echo "linker=`"$AndroidToolchain/bin/x86_64-linux-android${AndroidApiLevel}-clang`"" >> $CargoConfigFile
+        echo "rustflags = [`"-C`", `"link-args=-z max-page-size=16384`"]" >> $CargoConfigFile
+        echo "CC_x86_64-linux-android=$AndroidToolchain/bin/x86_64-linux-android${AndroidApiLevel}-clang" >> $Env:GITHUB_ENV
+        echo "AR_x86_64-linux-android=$AndroidToolchain/bin/llvm-ar" >> $Env:GITHUB_ENV
+        
+        echo "[target.armv7-linux-androideabi]" >> $CargoConfigFile
+        echo "linker=`"$AndroidToolchain/bin/armv7a-linux-androideabi${AndroidApiLevel}-clang`"" >> $CargoConfigFile
+        echo "rustflags = [`"-C`", `"link-args=-z max-page-size=16384`"]" >> $CargoConfigFile
+        echo "CC_armv7-linux-androideabi=$AndroidToolchain/bin/armv7a-linux-androideabi${AndroidApiLevel}-clang" >> $Env:GITHUB_ENV
+        echo "AR_armv7-linux-androideabi=$AndroidToolchain/bin/llvm-ar" >> $Env:GITHUB_ENV
+        
+        echo "[target.aarch64-linux-android]" >> $CargoConfigFile
+        echo "linker=`"$AndroidToolchain/bin/aarch64-linux-android${AndroidApiLevel}-clang`"" >> $CargoConfigFile
+        echo "rustflags = [`"-C`", `"link-args=-z max-page-size=16384`"]" >> $CargoConfigFile
+        echo "CC_aarch64-linux-android=$AndroidToolchain/bin/aarch64-linux-android${AndroidApiLevel}-clang" >> $Env:GITHUB_ENV
+        echo "AR_aarch64-linux-android=$AndroidToolchain/bin/llvm-ar" >> $Env:GITHUB_ENV
