@@ -18,11 +18,11 @@ inputs:
     required: false
   release-plz-version:
     description: release-plz version to use
-    default: 0.3.111
+    default: 0.3.147
     required: false
   cargo-semver-checks-version:
     description: cargo-semver-checks version to use
-    default: 0.38.0
+    default: 0.44.0
     required: false
   registry-token:
     description: Registry token (crates.io, ...)
