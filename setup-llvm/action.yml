@@ -5,11 +5,11 @@ inputs:
   version:
     description: "Clang+LLVM version to install"
     required: false
-    default: "18.1.8"
+    default: "20.1.8"
   prebuilt_version:
     description: "prebuilt distribution version"
     required: false
-    default: "v2025.2.0"
+    default: "v2025.3.0"
   add_to_path:
     description: "Add LLVM binary directory to PATH"
     required: false
