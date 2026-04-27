@@ -38,7 +38,11 @@ runs:
         $PackageBaseName="clang+llvm-${ClangLlvmVersion}-${HostArch}-${HostPlatform}"
         $DownloadFile = "${PackageBaseName}.tar.xz"
         $ChecksumFile = "${{ github.action_path }}/${DownloadVersion}/checksums"
-        wget -q "${BaseDownloadUrl}/${PackageBaseName}.tar.xz"
+        wget -q --tries=3 "${BaseDownloadUrl}/${PackageBaseName}.tar.xz"
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "::error ::❌ Failed to download '${PackageBaseName}.tar.xz' from '${BaseDownloadUrl}' (exit code: $LASTEXITCODE)"
+          exit 1
+        }
 
         try { $SkipChecksumValidation = [System.Boolean]::Parse('${{ inputs.skip_checksum_validation }}') } catch { $SkipChecksumValidation = $true }
         try { $ExpectedChecksum = (Get-Content $ChecksumFile | Where-Object { $_.EndsWith($DownloadFile) }).Split(" ")[0] } catch { $ExpectedChecksum = $null }
