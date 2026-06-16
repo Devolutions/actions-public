@@ -9,7 +9,7 @@ Installs prebuilt [Apple cctools port for Linux](https://github.com/tpoechtrager
   with:
     # prebuilt distribution version
     #
-    # Default: 'v2025.2.0'
+    # Default: 'v2026.1.1'
     prebuilt_version: ''
 
     # Skip checksum validation
@@ -30,6 +30,6 @@ Installs prebuilt [Apple cctools port for Linux](https://github.com/tpoechtrager
   uses: Devolutions/actions-public/setup-cctools@v1
   if: runner.os == 'Linux'
   with:
-    prebuilt_version: "v2025.2.0"
+    prebuilt_version: "v2026.1.1"
     skip_checksum_validation: false
 ```
