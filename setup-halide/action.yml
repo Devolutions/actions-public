@@ -5,11 +5,11 @@ inputs:
   version:
     description: "Halide version to install"
     required: false
-    default: "16.0.0"
+    default: "21.0.0"
   prebuilt_version:
     description: "prebuilt distribution version"
     required: false
-    default: "v2025.2.0"
+    default: "v2026.1.1"
   set_halide_root_dir:
     description: "Set HALIDE_ROOT_DIR environment variable"
     required: false
@@ -43,7 +43,7 @@ runs:
           Write-Host "::error ::❌ Checksum validation failed for '$DownloadFile': $ComputedChecksum, $ExpectedChecksum"
           exit 1
         }
-        
+
         if ($IsWindows) {
           $HALIDE_PREFIX="C:/halide"
           cmd.exe /c "7z.exe x $DownloadFile -so | 7z x -si -ttar -o`"C:/temp`""
@@ -56,7 +56,7 @@ runs:
           sudo mv "/tmp/${PackageBaseName}" $HALIDE_PREFIX
           Remove-Item $DownloadFile -Force | Out-Null
         }
-        
+
         try { $SetHalideRootDir = [System.Boolean]::Parse('${{ inputs.set_halide_root_dir }}') } catch { $SetHalideRootDir = $true }
         if ($SetHalideRootDir) {
           echo "HALIDE_ROOT_DIR=$HALIDE_PREFIX" >> $Env:GITHUB_ENV
