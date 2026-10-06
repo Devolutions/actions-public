@@ -9,12 +9,12 @@ Installs a [prebuilt clang-llvm distribution](https://github.com/awakecoding/llv
   with:
     # clang-llvm version
     #
-    # Default: '18.1.8'
+    # Default: '22.1.4'
     version: ''
 
     # prebuilt distribution version
     #
-    # Default: 'v2025.2.0'
+    # Default: 'v2026.1.1'
     prebuilt_version: ''
 
     # Add LLVM binary directory to PATH
@@ -44,8 +44,8 @@ Installs a [prebuilt clang-llvm distribution](https://github.com/awakecoding/llv
 - name: Setup llvm
   uses: Devolutions/actions-public/setup-llvm@v1
   with:
-    version: "18.1.8"
-    prebuilt_version: "v2025.2.0"
+    version: "22.1.4"
+    prebuilt_version: "v2026.1.1"
     add_to_path: true
     set_llvm_dir: false
     skip_checksum_validation: false
