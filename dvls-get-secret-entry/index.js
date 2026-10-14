@@ -2,9 +2,7 @@ const core = require('@actions/core');
 const axios = require('axios');
 const https = require('https');
 
-const axiosInstance = axios.create({
-  httpsAgent: new https.Agent({ rejectUnauthorized: false })
-});
+let axiosInstance = axios.create();
 
 async function getVaultId(serverUrl, token, vaultName) {
   core.debug(`Attempting to get vault ID for vault: ${vaultName}`);
@@ -92,6 +90,14 @@ async function run() {
     const vaultName = core.getInput('vault_name');
     const entryName = core.getInput('entry_name');
     const outputVariable = core.getInput('output_variable');
+    const skipTlsVerify = core.getBooleanInput('skip_tls_verify');
+
+    if (skipTlsVerify) {
+      core.warning('TLS certificate verification is disabled (skip_tls_verify: true). The connection to Devolutions Server is vulnerable to interception. Prefer trusting your CA with NODE_EXTRA_CA_CERTS.');
+      axiosInstance = axios.create({
+        httpsAgent: new https.Agent({ rejectUnauthorized: false })
+      });
+    }
 
     core.debug(`Server URL: ${serverUrl}`);
     core.debug(`Vault Name: ${vaultName}`);
