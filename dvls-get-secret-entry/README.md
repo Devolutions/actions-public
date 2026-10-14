@@ -26,6 +26,7 @@ steps:
 | `vault_name` | Name of the vault containing the secret entry | Yes | - |
 | `entry_name` | Name of the secret entry to retrieve | Yes | - |
 | `output_variable` | Name of the environment variable to store the retrieved secret | No | `DVLS_ENTRY_SECRET` |
+| `skip_tls_verify` | Disable TLS certificate verification (insecure, see [TLS certificate verification](#tls-certificate-verification)) | No | `false` |
 
 ## Usage
 
@@ -73,6 +74,17 @@ jobs:
           echo "Secret is stored in ${{ env.DVLS_ENTRY_SECRET }}"
           # Your code that uses the secret
 ```
+
+## TLS Certificate Verification
+
+The action verifies the Devolutions Server TLS certificate. If your server uses a certificate issued by a private CA, make the CA trusted instead of disabling verification:
+
+```yaml
+env:
+  NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/certs/my-ca.pem
+```
+
+`skip_tls_verify: true` disables certificate verification entirely. Anyone able to intercept the traffic between the runner and the server can then read the credentials and secrets exchanged. Only use it for testing with self-signed certificates.
 
 ## Security Notes
 

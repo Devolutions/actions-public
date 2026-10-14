@@ -20,6 +20,7 @@ Before using this action, you need:
 | `app_key` | Application key for authentication | Yes | - |
 | `app_secret` | Application secret for authentication | Yes | - |
 | `output_variable` | Name of the environment variable to store the retrieved token | No | `DVLS_TOKEN` |
+| `skip_tls_verify` | Disable TLS certificate verification (insecure, see [TLS certificate verification](#tls-certificate-verification)) | No | `false` |
 
 ## Usage
 
@@ -62,6 +63,17 @@ jobs:
           vault_name: 'MyVault'
           entry_name: 'MySecret'
 ```
+
+## TLS Certificate Verification
+
+The action verifies the Devolutions Server TLS certificate. If your server uses a certificate issued by a private CA, make the CA trusted instead of disabling verification:
+
+```yaml
+env:
+  NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/certs/my-ca.pem
+```
+
+`skip_tls_verify: true` disables certificate verification entirely. Anyone able to intercept the traffic between the runner and the server can then read the credentials and secrets exchanged. Only use it for testing with self-signed certificates.
 
 ## Security Notes
 

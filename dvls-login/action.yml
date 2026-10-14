@@ -14,6 +14,10 @@ inputs:
     description: 'Name of the environment variable to store the retrieved token'
     required: false
     default: 'DVLS_TOKEN'
+  skip_tls_verify:
+    description: 'Disable TLS certificate verification. Insecure: only use for testing with self-signed certificates. Prefer NODE_EXTRA_CA_CERTS to trust a private CA.'
+    required: false
+    default: 'false'
 runs:
   using: 'node20'
   main: 'dist/index.js'

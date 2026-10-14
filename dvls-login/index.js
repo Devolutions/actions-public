@@ -2,9 +2,7 @@ const core = require('@actions/core');
 const axios = require('axios');
 const https = require('https');
 
-const axiosInstance = axios.create({
-  httpsAgent: new https.Agent({ rejectUnauthorized: false })
-});
+let axiosInstance = axios.create();
 
 async function getAuthToken(serverUrl, appKey, appSecret) {
   core.debug('Attempting to get auth token...');
@@ -32,7 +30,6 @@ async function makeRequest(description, requestFn) {
       headers: error.response?.headers,
       url: error.config?.url,
       method: error.config?.method,
-      requestData: error.config?.data,
       queryParams: error.config?.params
     }, null, 2));
 
@@ -49,6 +46,14 @@ async function run() {
     const appKey = core.getInput('app_key');
     const appSecret = core.getInput('app_secret');
     const outputVariable = core.getInput('output_variable');
+    const skipTlsVerify = core.getBooleanInput('skip_tls_verify');
+
+    if (skipTlsVerify) {
+      core.warning('TLS certificate verification is disabled (skip_tls_verify: true). The connection to Devolutions Server is vulnerable to interception. Prefer trusting your CA with NODE_EXTRA_CA_CERTS.');
+      axiosInstance = axios.create({
+        httpsAgent: new https.Agent({ rejectUnauthorized: false })
+      });
+    }
 
     core.debug(`Server URL: ${serverUrl}`);
     
