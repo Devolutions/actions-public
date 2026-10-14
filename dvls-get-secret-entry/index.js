@@ -72,7 +72,6 @@ async function makeRequest(description, requestFn) {
       headers: error.response?.headers,
       url: error.config?.url,
       method: error.config?.method,
-      requestData: error.config?.data,
       queryParams: error.config?.params
     }, null, 2));
 
